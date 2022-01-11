@@ -206,8 +206,10 @@ describe('Staking Pool', () => {
 
   describe("Claim", () => {
     it("Should give back the correct amount of reward", async () => {
-      const amount = getBigNumber(50000);
+      await staking.setFeeRate(feeRate);
+      let amount = getBigNumber(50000);
       const log = await staking.deposit(amount, alice.address)
+      amount = amount.sub(amount.mul(feeRate).div(apyAccuracy));
       const apy = await staking.rewardAPY(alice.address);
       await advanceTime(315360);
       const aliceBalanceBefore = await rewardToken.balanceOf(alice.address);
@@ -225,29 +227,6 @@ describe('Staking Pool', () => {
     it("Claim with empty user balance", async () => {
       await staking.connect(alice).claim(alice.address);
     })
-
-    it("Fee is incurred", async () => {
-      await staking.setFeeRate(feeRate);
-
-      let amount = getBigNumber(50000);
-      const depositFee = amount.mul(feeRate).div(apyAccuracy);
-      const log = await staking.deposit(amount, alice.address)
-      amount = amount.sub(depositFee);
-      const apy = await staking.rewardAPY(alice.address);
-
-      await advanceTime(315360);
-
-      const aliceBalanceBefore = await rewardToken.balanceOf(alice.address);
-      const log2 = await staking.connect(alice).claim(alice.address);
-      const aliceBalanceAfter = await rewardToken.balanceOf(alice.address);
-      const timestamp2 = (await ethers.provider.getBlock(log2.blockNumber!)).timestamp;
-      const timestamp = (await ethers.provider.getBlock(log.blockNumber!)).timestamp;
-      const expectedReward = amount.mul(timestamp2 - timestamp).mul(apy).div(apyAccuracy).div(OneYear)
-      const expectedFee = expectedReward.mul(feeRate).div(apyAccuracy);
-
-      expect(aliceBalanceAfter.sub(aliceBalanceBefore)).to.be.equal(expectedReward.sub(expectedFee));
-      expect(await rewardToken.balanceOf(feeCollector.address)).to.be.equal(expectedFee.add(depositFee));
-    });
   });
 
   describe("Withdraw", () => {
@@ -303,7 +282,7 @@ describe('Staking Pool', () => {
       const expectedReward = amount.mul(timestamp2 - timestamp).mul(apy).div(apyAccuracy).div(OneYear)
 
       if (rewardToken.address === lpToken.address) {
-        const expectedFee = expectedReward.add(amount).mul(feeRate).div(apyAccuracy);
+        const expectedFee = amount.mul(feeRate).div(apyAccuracy);
         expect(expectedReward.add(amount).sub(expectedFee)).to.be.equal(balance1.sub(balance0));
         expect(await rewardToken.balanceOf(feeCollector.address)).to.be.equal(expectedFee.add(depositFee));
       }

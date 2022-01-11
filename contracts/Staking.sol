@@ -266,12 +266,9 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
         );
         user.amount = user.amount.sub(amount);
 
-        uint256 rewardFee = _pendingReward * feeRate / APY_ACCURACY;
+        rewardToken.safeTransferFrom(rewardTreasury, to, _pendingReward);
+
         uint256 lpFee = amount * feeRate / APY_ACCURACY;
-
-        rewardToken.safeTransferFrom(rewardTreasury, feeCollector, rewardFee);
-        rewardToken.safeTransferFrom(rewardTreasury, to, _pendingReward - rewardFee);
-
         lpToken.safeTransfer(feeCollector, lpFee);
         lpToken.safeTransfer(to, amount - lpFee);
 
@@ -299,10 +296,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
 
         // Interactions
         if (_pendingReward != 0) {
-            uint256 rewardFee = _pendingReward * feeRate / APY_ACCURACY;
-
-            rewardToken.safeTransferFrom(rewardTreasury, feeCollector, rewardFee);
-            rewardToken.safeTransferFrom(rewardTreasury, to, _pendingReward - rewardFee);
+            rewardToken.safeTransferFrom(rewardTreasury, to, _pendingReward);
         }
 
         emit Claim(msg.sender, _pendingReward);
