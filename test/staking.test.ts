@@ -226,7 +226,37 @@ describe('Staking Pool', () => {
 
     it("Claim with empty user balance", async () => {
       await staking.connect(alice).claim(alice.address);
-    })
+    });
+
+    it("Resolve risk to claim more", async () => {
+      // 1. Deposit 100 PCR
+      await staking.deposit(getBigNumber(100), alice.address);
+
+      // 2. Update alice
+      await staking.update(alice.address);
+
+      // 3. Emergency withdraw alice's balance
+      await staking.connect(alice).emergencyWithdraw(alice.address);
+     
+      // 4. 1 year passed
+      await advanceTime(86400 * 365)
+
+      // 5. Redeposit and claim rewards
+      const amount = getBigNumber(50000);
+      const log = await staking.deposit(amount, alice.address)
+      const apy = await staking.rewardAPY(alice.address);
+      await advanceTime(315360);
+      const aliceBalanceBefore = await rewardToken.balanceOf(alice.address);
+      const log2 = await staking.connect(alice).claim(alice.address);
+      const aliceBalanceAfter = await rewardToken.balanceOf(alice.address);
+      const timestamp2 = (await ethers.provider.getBlock(log2.blockNumber!)).timestamp;
+      const timestamp = (await ethers.provider.getBlock(log.blockNumber!)).timestamp;
+      const expectedReward = amount.mul(timestamp2 - timestamp).mul(apy).div(apyAccuracy).div(OneYear)
+
+      expect(aliceBalanceAfter.sub(aliceBalanceBefore)).to.be.equal(expectedReward);
+      expect((await staking.userInfo(alice.address)).rewardDebt).to.be.equal(expectedReward);
+      expect(await staking.pendingReward(alice.address)).to.be.equal(0);      
+    });
   });
 
   describe("Withdraw", () => {

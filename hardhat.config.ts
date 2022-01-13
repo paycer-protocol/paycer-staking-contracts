@@ -45,17 +45,6 @@ const config: HardhatUserConfig = {
       chainId: 80001,
       ...defaultConfig
     },
-    hardhat: {
-      forking: {
-        url:
-          "https://data-seed-prebsc-1-s1.binance.org:8545",
-      },
-      accounts: {
-        mnemonic,
-        accountsBalance: "10000000000000000000000",
-      },
-      chainId: 1337,
-    },
   },
   etherscan: {
     apiKey: ETHERSCAN_API_KEY,
