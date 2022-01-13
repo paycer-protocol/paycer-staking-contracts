@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.0;
+pragma solidity 0.8.3;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -162,7 +162,7 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
      */
     function rewardAPY(address _user) public view returns (uint256) {
         uint256 tierFactor = _tierFactor(_user);
-        return baseAPY.mul(tierFactor).div(10);
+        return baseAPY.mul(tierFactor).div(100);
     }
 
     /**
@@ -172,11 +172,11 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
     function _tierFactor(address _user) internal view returns (uint256) {
         // PCR decimals: 18
         UserInfo memory user = userInfo[_user];
-        if (user.amount < 5000 * 10**18) return 0;
-        if (user.amount < 15000 * 10**18) return 5;
-        if (user.amount < 35000 * 10**18) return 10;
-        if (user.amount < 100000 * 10**18) return 15;
-        return 20; 
+        if (user.amount < 5000 * 10**18) return 100;
+        if (user.amount < 15000 * 10**18) return 125;
+        if (user.amount < 35000 * 10**18) return 150;
+        if (user.amount < 100000 * 10**18) return 175;
+        return 200; 
     }
 
     /**
@@ -253,6 +253,8 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
     function withdraw(uint256 amount, address to) public nonReentrant whenNotPaused {
         update(to);
         UserInfo storage user = userInfo[msg.sender];
+        require(amount <= user.amount, "revert");
+
         int256 accumulatedReward = int256(
             user.amount.mul(user.accRewardPerShare) / ACC_REWARD_PRECISION
         );
