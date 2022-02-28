@@ -62,6 +62,12 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
     /// @notice Info of each user that stakes LP tokens.
     mapping(address => UserInfo) public userInfo;
 
+    /// @notice woker(nft contract or someone to set custom things)
+    address public worker;
+
+    /// @notice Lock info for each user.
+    mapping(address => uint256) public lockExpiresAt;
+
     event Deposit(address indexed user, uint256 amount, address indexed to);
     event Withdraw(address indexed user, uint256 amount, address indexed to);
     event Claim(address indexed user, uint256 amount);
@@ -78,6 +84,11 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
         uint256 accRewardPerShare
     );
     event LogRewardTreasury(address indexed wallet);
+
+    modifier onlyOwnerOrWorker {
+        require(_msgSender() == worker || _msgSender() == owner(), "Not owner or worker");
+        _;
+    }
 
     /**
      * @param _rewardToken The reward token contract address.
@@ -137,6 +148,14 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
      */
     function setFeeRate(uint256 _feeRate) external onlyOwner {
         feeRate = _feeRate;
+    }
+
+    /**
+     * @notice set worker
+     * @param _worker address of worker
+     */
+    function setWorker(address _worker) external onlyOwner {
+        worker = _worker;
     }
 
     /**
@@ -206,6 +225,14 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
      * @notice Update reward variables.
      * @dev Updates accRewardPerShare and lastRewardTime.
      */
+    function setLock(address _user, uint256 expiresAt) external onlyOwnerOrWorker {
+        lockExpiresAt[_user] = expiresAt;
+    }
+
+    /**
+     * @notice Update reward variables.
+     * @dev Updates accRewardPerShare and lastRewardTime.
+     */
     function update(address _user) public {
         UserInfo storage user = userInfo[_user];
         uint256 apy = rewardAPY(_user);
@@ -251,6 +278,8 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
      * @param to Receiver of the LP tokens and rewards.
      */
     function withdraw(uint256 amount, address to) public nonReentrant whenNotPaused {
+        require(lockExpiresAt[msg.sender] < block.timestamp, "Lock not expired");
+
         update(to);
         UserInfo storage user = userInfo[msg.sender];
         int256 accumulatedReward = int256(
