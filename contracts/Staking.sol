@@ -282,7 +282,6 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
 
         update(to);
         UserInfo storage user = userInfo[msg.sender];
-        require(amount <= user.amount, "revert");
 
         int256 accumulatedReward = int256(
             user.amount.mul(user.accRewardPerShare) / ACC_REWARD_PRECISION
