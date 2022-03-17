@@ -12,6 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
+import "./interfaces/INFT.sol";
 
 /// @title Staking Contract
 /// @notice You can use this contract for staking tokens and distribute rewards
@@ -67,6 +68,9 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
 
     /// @notice Lock info for each user.
     mapping(address => uint256) public lockExpiresAt;
+
+    /// @notice NFT address
+    address public nft;
 
     event Deposit(address indexed user, uint256 amount, address indexed to);
     event Withdraw(address indexed user, uint256 amount, address indexed to);
@@ -159,6 +163,14 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
     }
 
     /**
+     * @notice set nft
+     * @param _nft address of nft
+     */
+    function setNFT(address _nft) external onlyOwner {
+        nft = _nft;
+    }
+
+    /**
      * @notice return available reward amount
      * @return rewardInTreasury reward amount in treasury
      * @return rewardAllowedForThisPool allowed reward amount to be spent by this pool
@@ -181,7 +193,12 @@ contract Staking is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeab
      */
     function rewardAPY(address _user) public view returns (uint256) {
         uint256 tierFactor = _tierFactor(_user);
-        return baseAPY.mul(tierFactor).div(100);
+        uint256 bonusRate = 0;
+        if (nft != address(0)) {
+            (uint256 multiplier, uint256 precision) = INFT(nft).getStakingRateMultiplier(_user);
+            bonusRate = baseAPY.mul(multiplier).div(precision);
+        }
+        return baseAPY.mul(tierFactor).div(100).add(bonusRate);
     }
 
     /**
